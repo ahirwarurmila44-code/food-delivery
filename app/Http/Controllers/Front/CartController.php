@@ -10,100 +10,79 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Facades\Auth;
+use session;
+use Razorpay\Api\Api;
+use Illuminate\Support\Str; 
 
 class CartController extends Controller
 {
-    // public function add(Request $request)
-    // {
-    //     $product = Product::findOrFail($request->product_id);
-    //     $cart = session()->get('cart', []);
-
-    //     if (isset($cart[$product->id])) {
-    //         $cart[$product->id]['quantity'] += 1;
-    //     } else {
-    //         $cart[$product->id] = [
-    //             "name" => $product->name,
-    //             "price" => $product->price,
-    //             "quantity" => 1,
-    //         ];
-    //     }
-
-    //     session()->put('cart', $cart);
-
-    //     return response()->json(['success' => 'Product added to cart']);
-    // }
-
-    // public function add(Request $request)
-    // {
-    //     $request->validate([
-    //         'product_id' => 'required|exists:products,id',
-    //     ]);
-    //     $productId = $request->input('product_id');
-
-    //     $cart = session()->get('cart', []);
-    //     $cart[$productId] = ($cart[$productId] ?? 0) + 1;
-    //     session()->put('cart', $cart);
-
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'message' => 'Added to cart!',
-    //         'cart_count' => count($cart),
-    //         'cart_items' => $cart
-    //     ]);
-    // }
-
+    
     public function add(Request $request)
     {
         $productId = $request->product_id;
-        $quantity = $request->quant_num;
-        if (!auth()->check()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Please log in to add to cart.'
-            ], 401);
-        }
+        $quantity = (int) $request->quant_num;
 
-        $cartItem = Cart::where('user_id', auth()->id())
-            ->where('product_id', $productId)
-            ->first();
-        if ($cartItem) {
-            $cartItem->increment('quantity');
+        $product = Product::findOrFail($productId);
+        $cart= Cart::where('product_id',$productId)
+                          ->where('user_id', auth()->id())
+                          ->first();
+        
+        //$cart = session()->get('cart', []);
+        if ($cart) {
+            $cart->quantity += $quantity;
+            $cart->save();
         } else {
             Cart::create([
-                'user_id' => auth()->id(),
-                'product_id' => $productId,
-                'quantity' => $quantity
+                'user_id'     => auth()->id(),
+                'product_id'  => $productId,
+                'quantity'    => $quantity,
             ]);
         }
 
-        // Prepare cart item data to return
-        $items = Cart::with('product')
-            ->where('user_id', auth()->id())
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'name' => $item->product->name,
-                    'qty' => $item->quantity,
-                    'total' => $item->quantity * $item->product->price
-                ];
-            });
+        //session()->put('cart', $cart);
+
+        $cartItems = Cart::with('product')
+                ->where('user_id', auth()->id())
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'name' => $item->product->name,
+                        'qty' => $item->quantity,
+                        'total' => $item->product->price * $item->quantity,
+                    ];
+                });
 
         return response()->json([
             'status' => 'success',
             'message' => 'Added to cart!',
-            'cart_items' => $items,
-            'cart_count' => $items->count()
+            'cart_items' => $cartItems,
+            'cart_count' => Cart::where('user_id', auth()->id())->count(),
         ]);
     }
-    
+
     public function index()
     {
-        $cartCount = auth()->check()
-            ? Cart::where('user_id', auth()->id())->count()
-            : 0;
+        if (!auth()->check()) {
+            return redirect()->route('login')->with('error', 'Please login to view your cart.');
+        }
 
-        return view('frontend.cart.index', compact('cartCount'));
+        $userId = auth()->id();
+
+        // Get all cart items for the user
+        $cartItems = Cart::with('product')
+            ->where('user_id', $userId)
+            ->get()
+            ->map(function ($item) {
+                $item->total = $item->product->price * $item->quantity;
+                return $item;
+            });
+
+        $totalAmount = $cartItems->sum('total');
+        $cartCount = $cartItems->count();
+
+        return view('frontend.cart.index', compact('cartItems', 'totalAmount', 'cartCount'));
     }
+
 
     public function update(Request $request) {
         Cart::where('id', $request->id)->update(['quantity' => $request->quantity]);
@@ -112,49 +91,59 @@ class CartController extends Controller
 
     public function remove($id) {
         Cart::where('id', $id)->delete();
-        return response()->json(['status' => 'success', 'message' => 'Removed from cart']);
+        return response()->json(['status' => 'success', 'message' => 'Item is removed from cart']);
     }
 
     public function checkout() {
         $cart = Cart::with('product')->where('user_id', Auth::id())->get();
-        return view('frontend.cart.checkout', compact('cart'));
-    }
-
-    public function placeOrder(Request $request) {
-        $order = Order::create([
-            'user_id' => Auth::id(),
-            'total' => $request->total,
-            'address' => $request->address,
-            'payment_method' => $request->payment_method,
-            'status' => 'Pending',
-        ]);
-
-        foreach ($request->items as $item) {
-            OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'quantity' => $item['quantity'],
-                'price' => $item['price'],
-            ]);
-        }
-
-        Cart::where('user_id', Auth::id())->delete();
-
-        return response()->json(['status' => 'success', 'message' => 'Order placed successfully!']);
-    }
-
-    // public function checkout()
-    // {
-    //     $cart = Cart::where('user_id', auth()->id())->with('product')->get();
-    //     return view('checkout', compact('cart'));
-    // }
-    public function showCheckout()
-    {
-        $cartItems = session('cart', []);
-        $subtotal = collect($cartItems)->sum(fn($item) => $item['price'] * $item['quantity']);
+        $subtotal = $cart->sum(function ($item) {
+            return $item->product->price * $item->quantity; });
         $deliveryFee = 30;
         $total = $subtotal + $deliveryFee;
-
-        return view('frontend.checkout', compact('cartItems', 'subtotal', 'deliveryFee', 'total'));
+        return view('frontend.cart.checkout', compact('cart','subtotal', 'deliveryFee', 'total'));
     }
+
+    public function createRazorpayOrder(Request $request)
+    {
+        $amountInPaise = max(100000, (int)($request->totalAmt * 100));
+
+        $api = new \Razorpay\Api\Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
+
+        $order = $api->order->create([
+            'receipt' => Str::random(10),
+            'amount' => $amountInPaise,
+            'currency' => 'INR',
+            'payment_capture' => 1,
+        ]);
+
+    
+        return response()->json([
+            'order_id' => $order['id'],
+            'amount' => $order['amount']
+        ]);
+    }
+
+
+    public function placeOrder(Request $request)
+    {
+        $request->validate([
+            'address' => 'required',
+            'payment_method' => 'required',
+        ]);
+
+        $order = new Order();
+        $order->user_id = auth()->id();
+        $order->total_price = $request->total;
+        $order->status = 'pending';
+        $order->delivery_status = 'pending';
+        $order->payment_method = $request->payment_method;
+        $order->tracking_number = 'pending';
+        $order->estimated_delivery = 'pending';
+        $order->save();
+
+        // Save order items logic here...
+
+        return response()->json(['message' => 'Order placed successfully!']);
+    }
+
 }

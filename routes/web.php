@@ -7,15 +7,10 @@ use App\Http\Controllers\Front\ProductController;
 use App\Http\Controllers\Auth\UserAuthController;
 use App\Http\Controllers\Front\RestaurantController;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
-
 Auth::routes();
 
 Route::get('register', [UserAuthController::class, 'showRegisterForm'])->name('user.register');
 Route::post('register', [UserAuthController::class, 'register'])->name('user.register.submit');
-
 Route::get('login', [UserAuthController::class, 'showLoginForm'])->name('user.login');
 Route::post('login', [UserAuthController::class, 'login'])->name('user.login.submit');
 Route::post('logout', [UserAuthController::class, 'logout'])->name('user.logout');
@@ -37,12 +32,11 @@ Route::middleware('auth')->group(function () {
          Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
         Route::delete('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
         Route::get('/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
+
         Route::post('/checkout/place-order', [CartController::class, 'placeOrder'])->name('cart.placeOrder');
+        Route::post('/razorpay/order', [CartController::class, 'createRazorpayOrder'])->name('cart.razorpay.order');
     });
 
 });
-
-/////////////////////////food delivery cart
-
 
 require __DIR__.'/admin.php';

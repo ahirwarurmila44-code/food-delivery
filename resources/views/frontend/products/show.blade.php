@@ -28,13 +28,18 @@
 
             <div class="mt-4">
                 @if ($product->available)
-                <form action="{{ route('cart.add', $product->id) }}" method="POST">
+                <form >
                     @csrf
-                    <div class="d-flex align-items-center gap-3">
-                        <input type="number" name="quantity" value="1" min="1" max="10" class="form-control w-25" />
-                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                    <div class="d-flex align-items-center gap-3">        
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-decrement" data-id="{{ $product->id }}">−</button>
+                        <input type="text" class="form-control text-center quantity-input" value="1" readonly style="width: 50px;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-increment" data-id="{{ $product->id }}">+</button>
+                        <button type="button"
+                                class="btn btn-primary btn-lg shadow-sm add-to-cart-btn"
+                                data-id="{{ $product->id }}">
                             <i class="bi bi-cart-plus me-1"></i> Add to Cart
                         </button>
+
                     </div>
                 </form>
                 @else
@@ -42,20 +47,75 @@
                 @endif
             </div>
         </div>
-    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
-$('.add-to-cart').click(function () {
-    const id = $(this).data('id');
+$(document).ready(function(){
+    $('.add-to-cart-btn').on('click', function (e) {
+        e.preventDefault();
 
-    $.post('/cart/add', {
-        product_id: id,
-        _token: '{{ csrf_token() }}'
-    }, function (res) {
-        alert(res.success);
+        const productId = $(this).data('id');
+        const quantity = $(this).closest('form').find('.quantity-input').val();
+
+        axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+        const token = document.querySelector('meta[name="csrf-token"]');
+        if (token) {
+            axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
+        } else {
+            console.error('CSRF token not found!');
+        }
+
+        axios.post("{{ route('cart.add') }}", {
+            product_id: productId,
+            quant_num: quantity
+        })
+        .then(res => {
+            toastr.success(res.data.message);
+            updateCartUI(res.data.cart_items);
+            const cartCount = document.getElementById('cart-count');
+
+            if (cartCount && res.data.cart_count !== undefined) {
+                cartCount.textContent = res.data.cart_count;
+                cartCount.classList.add('cart-animate');
+                setTimeout(() => cartCount.classList.remove('cart-animate'), 300);
+            }
+        })
+        .catch(err => {
+            console.error(err.response || err);
+            if (err.response?.status === 401) {
+                toastr.error("Please log in to add to your cart.");
+            } else {
+                const msg = err.response?.data?.message || 'Something went wrong.';
+                        toastr.error(msg);
+            }
+        });
+
     });
+
+    // });
+
+     $(document).on('click', '.btn-increment', function (e) {
+        e.preventDefault();
+        let $qtyInput = $(this).siblings('.quantity-input');
+        let currentQty = parseInt($qtyInput.val());
+        $qtyInput.val(currentQty + 1);
+    });
+
+    $(document).on('click', '.btn-decrement', function (e) {
+        e.preventDefault();
+        let $qtyInput = $(this).siblings('.quantity-input');
+        let currentQty = parseInt($qtyInput.val());
+        if (currentQty > 1) {
+            $qtyInput.val(currentQty - 1);
+        }
+    });
+
+
+     
 });
+
 </script>
 @endpush

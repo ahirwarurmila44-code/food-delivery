@@ -101,7 +101,15 @@ $(document).ready(function () {
             { data: 'price' },
             { data: 'available', className: 'text-center'  },
             { data: 'action', className: 'text-center' , orderable: false, searchable: false }
-        ]
+        ],
+        dom: 'Bfrtip',
+        buttons: [
+            { extend: 'csv', text: 'Export CSV', className: 'btn btn-secondary btn-sm' },
+            { extend: 'excel', text: 'Export Excel', className: 'btn btn-success btn-sm' },
+            { extend: 'pdf', text: 'Export PDF', className: 'btn btn-danger btn-sm' },
+            { extend: 'print', text: 'Print', className: 'btn btn-info btn-sm' }
+        ],
+        order: [[1, 'asc']]
     });
     $('#createBtn').click(() => {
         $('#productForm')[0].reset();

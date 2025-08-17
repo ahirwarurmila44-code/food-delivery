@@ -25,14 +25,16 @@
                         <button class="btn btn-outline-secondary btn-increment" data-id="{{ $item->id }}">+</button>
                     </div>
                 </div>
-
+                @php
+                   $total = $item->product->price * $item->product->quantity;
+                @endphp
                 <div class="col-md-2 text-end">
-                    <strong>₹{{ number_format($item->total, 2) }}</strong>
+                    <strong>₹{{ number_format($item->product->price * $item->quantity, 2) }}</strong>
                 </div>
 
                 <div class="col-md-1 text-end">
                     <button class="btn btn-sm btn-danger btn-delete-item" data-id="{{ $item->id }}">
-                        <i class="fas fa-trash"></i>
+                        <i class="fas fa-trash">Remove</i>
                     </button>
                 </div>
             </div>
@@ -44,9 +46,59 @@
     @if(count($cartItems))
         <div class="mt-4 d-flex justify-content-between align-items-center">
             <h5>Total: ₹<span id="cart-total">{{ number_format($totalAmount, 2) }}</span></h5>
-            <a href="{{ route('checkout') }}" class="btn btn-primary btn-lg">Proceed to Checkout</a>
+            <a href="{{ route('cart.checkout') }}" class="btn btn-primary btn-lg">Proceed to Checkout</a>
         </div>
     @endif
 </div>
 
 @endsection
+@push('scripts')
+<script>
+
+     $(document).on('click', '.btn-increment', function (e) {
+        e.preventDefault();
+        let $qtyInput = $(this).siblings('.quantity-input');
+        let currentQty = parseInt($qtyInput.val());
+        $qtyInput.val(currentQty + 1);
+    });
+
+    $(document).on('click', '.btn-decrement', function (e) {
+        e.preventDefault();
+        let $qtyInput = $(this).siblings('.quantity-input');
+        let currentQty = parseInt($qtyInput.val());
+        if (currentQty > 1) {
+            $qtyInput.val(currentQty - 1);
+        }
+    });
+
+   $(document).on('click', '.btn-delete-item', function (e) {
+    e.preventDefault();
+    const itemId = $(this).data('id');
+
+    axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+    const token = document.querySelector('meta[name="csrf-token"]');
+    if (token) {
+        axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
+    } else {
+        console.error('CSRF token not found!');
+    }
+
+    const deleteUrl = "{{ route('cart.remove', ':id') }}".replace(':id', itemId);
+
+    axios.delete(deleteUrl, {
+        product_id: itemId
+    })
+    .then(res => {
+        toastr.success(res.data.message);
+        // optionally reload cart UI
+        updateCartUI(res.data.cartItems);
+    })
+    .catch(err => {
+        const msg = err.response?.data?.message || 'Something went wrong.';
+        toastr.error(msg);
+    });
+});
+
+</script>
+@endpush

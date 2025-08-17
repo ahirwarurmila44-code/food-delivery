@@ -64,11 +64,15 @@
             {{-- <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span> --}}
           </a>
         </li> -->
+        @php
+            $cartItems = session('cart', []);
+            $cartCount = is_array($cartItems) ? count($cartItems) : 0;
+        @endphp
         <li class="nav-item dropdown">
           <a class="nav-link position-relative dropdown-toggle" href="#" id="cartDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-cart-fill"></i>
             <span id="cart-count" class="badge bg-danger position-absolute top-2  translate-middle rounded-pill">
-                {{ session('cart') ? count(session('cart')) : 0 }}
+                 {{ $cartCount }}
             </span>
           </a>
           <ul class="dropdown-menu dropdown-menu-end p-2" style="min-width: 300px;" id="cart-dropdown-list">
@@ -114,7 +118,40 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
+<script>
+  function updateCartUI(items) {
+        const cartList = document.getElementById('cart-dropdown-list');
+        const cartCount = document.getElementById('cart-count');
+
+        //console.log("Cart items received:", items);
+
+        if (!items || Object.keys(items).length === 0) {
+            cartList.innerHTML = `<li class="text-muted text-center border-1">Cart is empty</li>`;
+            cartCount.textContent = '0';
+            return;
+        }
+
+        cartList.innerHTML = '';
+
+        const cartArray = Array.isArray(items) ? items : Object.values(items);
+
+        cartArray.forEach(item => {
+            cartList.innerHTML += `
+                <li class="d-flex justify-content-between align-items-center mb-1 border border-primary px-2">
+                    <span>${item.name} x ${item.qty}</span>
+                    <small class="text-muted">₹${item.total}</small>
+                </li>
+            `;
+        });
+
+        cartList.innerHTML += `<li><hr class="dropdown-divider"></li>
+                            <li><a href="/cart" class="dropdown-item text-center">View Cart</a></li>`;
+
+        cartCount.textContent = cartArray.length;
+    } 
+</script>
 @stack('scripts')
 </body>
 </html>

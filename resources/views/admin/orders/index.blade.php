@@ -152,8 +152,40 @@ $(function () {
             { data: 'status' },
             { data: 'delivery', name: 'delivery' },
             { data: 'action', orderable: false, searchable: false }
-        ]
+        ],
+        dom: 'Bfrtip',
+            buttons: [
+                { extend: 'csv', text: 'Export CSV', className: 'btn btn-secondary btn-sm' },
+                { extend: 'excel', text: 'Export Excel', className: 'btn btn-success btn-sm' },
+                { extend: 'pdf', text: 'Export PDF', className: 'btn btn-danger btn-sm' },
+                { extend: 'print', text: 'Print', className: 'btn btn-info btn-sm' }
+            ],
+            order: [[1, 'asc']]
     });
+
+    //////////////////////////////////////////////////////////////////////////
+        // let table = $('#customersTable').DataTable({
+        //     processing: true,
+        //     serverSide: true,
+        //     ajax: "",
+        //     columns: [
+        //         {data: 'DT_RowIndex', name: 'DT_RowIndex', searchable: false, orderable: false},
+        //         {data: 'name', name: 'name'},
+        //         {data: 'email', name: 'email'},
+        //         {data: 'phone', name: 'phone'},
+        //         {data: 'actions', name: 'actions', searchable: false, orderable: false},
+        //     ],
+        //     dom: 'Bfrtip',
+        //     buttons: [
+        //         { extend: 'csv', text: 'Export CSV', className: 'btn btn-secondary btn-sm' },
+        //         { extend: 'excel', text: 'Export Excel', className: 'btn btn-success btn-sm' },
+        //         { extend: 'pdf', text: 'Export PDF', className: 'btn btn-danger btn-sm' },
+        //         { extend: 'print', text: 'Print', className: 'btn btn-info btn-sm' }
+        //     ],
+        //     order: [[1, 'asc']]
+        // });
+
+    //////////////////////////////////////////////////////////////////////////
 
     $('#createBtn').click(function () {
         $('#orderForm')[0].reset();
